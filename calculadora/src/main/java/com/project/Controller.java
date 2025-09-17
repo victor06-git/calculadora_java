@@ -5,79 +5,87 @@ import javafx.scene.control.Button;
 import javafx.scene.text.Text;
 import javafx.event.ActionEvent;
 
+
+// Controlador de la calculadora: gestiona la lógica y la interfaz
 public class Controller {
 
+
+    // Botones de operaciones
     @FXML
     private Button buttonAdd, buttonMinus, buttonMult, buttonDiv;
+    // Botones numéricos
     @FXML
     private Button button1, button2, button3, button4, button5, button6, button7, button8, button9, button0;
 
+    // Display principal
     @FXML
     private Text textCounter;
 
-    private double firstNumber = 0;
-    private String operation = "";
-    private boolean start = true;
+    // Display secundario para mostrar la operación (nuevo)
+    @FXML
+    private Text textOperation;
 
+    // Primer número de la operación
+    private double firstNumber = 0;
+    // Operación seleccionada (+, -, *, /)
+    private String operation = "";
+    // Indica si se debe empezar a escribir un nuevo número
+    private boolean start = true;
+    // Guarda el último resultado para operaciones encadenadas
+    private double lastResult = 0;
+    // Indica si ya se ha realizado una operación antes
+    private boolean hasResult = false;
+
+
+    // Evento para botón suma
     @FXML
     private void addOperation(ActionEvent event) {
         setOperation("+");
     }
 
+    // Evento para botón resta
     @FXML
     private void minusOperation(ActionEvent event) {
         setOperation("-");
     }
 
+    // Evento para botón multiplicación
     @FXML
     private void multiplyOperation(ActionEvent event) {
         setOperation("*");
     }
 
+    // Evento para botón división
     @FXML
     private void divideOperation(ActionEvent event) {
         setOperation("/");
     }
 
+
+    // Establece la operación y gestiona operaciones encadenadas
     private void setOperation(String op) {
-        String display = textCounter.getText();
-        // Si ya hay una operación y un segundo número, calcula el resultado antes de continuar
-        if (display.matches(".*[+\\-*/] .+")) {
-            String[] parts = display.split(" ");
-            if (parts.length == 3) {
-                double secondNumber;
-                try {
-                    secondNumber = Double.parseDouble(parts[2]);
-                } catch (Exception e) {
-                    textCounter.setText("Error");
-                    start = true;
-                    operation = "";
-                    return;
-                }
-                double result = 0;
-                switch (operation) {
-                    case "+": result = firstNumber + secondNumber; break;
-                    case "-": result = firstNumber - secondNumber; break;
-                    case "*": result = firstNumber * secondNumber; break;
-                    case "/":
-                        if (secondNumber != 0) result = firstNumber / secondNumber;
-                        else {
-                            textCounter.setText("Error");
-                            start = true;
-                            operation = "";
-                            return;
-                        }
-                        break;
-                }
-                firstNumber = result;
+        double currentNumber = Double.parseDouble(textCounter.getText());
+        // Si ya hay una operación previa, realiza el cálculo antes de continuar
+        if (!operation.isEmpty() && !start) {
+            int result = calculate(firstNumber, currentNumber, operation);
+            textCounter.setText(String.valueOf(result));
+            if (textOperation != null) {
+                textOperation.setText((int)firstNumber + " " + operation + " " + (int)currentNumber);
             }
+            firstNumber = result;
+            lastResult = result;
+            hasResult = true;
         } else {
-            firstNumber = Double.parseDouble(display);
+            firstNumber = currentNumber;
         }
         operation = op;
-        textCounter.setText(firstNumber + " " + operation + " ");
         start = true;
+        // Mostrar la operación actual aunque no se pulse igual
+        if (textOperation != null) {
+            textOperation.setText((int)firstNumber + " " + operation + " ");
+        }
     }
+
 
     // Métodos para los botones numéricos
     @FXML
@@ -101,76 +109,79 @@ public class Controller {
     @FXML
     private void add0(ActionEvent event) { appendNumber("0"); }
 
+
+    // Añade un dígito al display
     private void appendNumber(String num) {
-        // Corregir la expresión regular para Java: los caracteres +, -, *, / deben ir precedidos de doble barra
-        String regex = ".*[+\\-*/] ?$";
-        if (start || textCounter.getText().equals("0") || textCounter.getText().matches(regex)) {
-            if (textCounter.getText().matches(regex)) {
-                textCounter.setText(textCounter.getText() + num);
-            } else {
-                textCounter.setText(num);
-            }
+        if (start || textCounter.getText().equals("0")) {
+            textCounter.setText(num);
             start = false;
         } else {
             textCounter.setText(textCounter.getText() + num);
         }
+        showCurrentOperation();
     }
 
-    // Método para el botón igual
+
+    // Calcula el resultado de la operación actual
+    // Calcula el resultado de la operación actual y devuelve un int
+    private int calculate(double a, double b, String op) {
+        double result;
+        switch (op) {
+            case "+": result = a + b; break;
+            case "-": result = a - b; break;
+            case "*": result = a * b; break;
+            case "/": result = (b != 0) ? a / b : Double.NaN; break;
+            default: result = b;
+        }
+        return (int) result;
+    }
+
+    // Evento para el botón igual
     @FXML
     private void equalsOperation(ActionEvent event) {
-        String display = textCounter.getText();
-        String[] parts = display.split(" ");
-        double secondNumber;
-        if (parts.length == 3) {
-            // formato: "num op num"
-            try {
-                secondNumber = Double.parseDouble(parts[2]);
-            } catch (Exception e) {
-                textCounter.setText("Error");
-                start = true;
-                operation = "";
-                return;
+        double secondNumber = Double.parseDouble(textCounter.getText());
+        int result = calculate(firstNumber, secondNumber, operation);
+        if (operation.equals("/") && secondNumber == 0) {
+            textCounter.setText("Error");
+            if (textOperation != null) {
+                textOperation.setText((int)firstNumber + " " + operation + " " + (int)secondNumber);
             }
         } else {
-            // Si el usuario no ha pulsado operación, usar el display
-            secondNumber = Double.parseDouble(display);
+            textCounter.setText(String.valueOf(result));
+            if (textOperation != null) {
+                textOperation.setText((int)firstNumber + " " + operation + " " + (int)secondNumber);
+            }
         }
-        double result = 0;
-        switch (operation) {
-            case "+":
-                result = firstNumber + secondNumber;
-                break;
-            case "-":
-                result = firstNumber - secondNumber;
-                break;
-            case "*":
-                result = firstNumber * secondNumber;
-                break;
-            case "/":
-                if (secondNumber != 0) {
-                    result = firstNumber / secondNumber;
-                } else {
-                    textCounter.setText("Error");
-                    start = true;
-                    operation = "";
-                    return;
-                }
-                break;
-            default:
-                result = secondNumber;
-        }
-        textCounter.setText(firstNumber + " " + operation + " " + secondNumber + " = " + result);
+        firstNumber = result;
+        lastResult = result;
+        hasResult = true;
         start = true;
         operation = "";
     }
 
-    // Método para limpiar
+
+    // Limpia la calculadora
     @FXML
     private void clearOperation(ActionEvent event) {
         textCounter.setText("0");
+        if (textOperation != null) textOperation.setText("");
         firstNumber = 0;
         operation = "";
         start = true;
+        lastResult = 0;
+        hasResult = false;
+    }
+
+    // Muestra la operación actual en el display secundario (si existe)
+    private void showCurrentOperation() {
+        if (textOperation != null) {
+            if (!operation.isEmpty() && !start) {
+                textOperation.setText(firstNumber + operation + textCounter.getText());
+            } else if (!operation.isEmpty()) {
+                textOperation.setText(firstNumber + operation);
+            } else {
+                textOperation.setText("");
+            }
+        }
     }
 }
